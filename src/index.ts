@@ -1,8 +1,8 @@
 import crypto from 'crypto'
 import Aont from './Aont.js'
-import { uint8ArrayToHex } from './utils.js'
+import { uint8ArrayToHex, bigintToUint8Array, hexToUint8Array, uint8ArrayToBigint } from './utils.js'
 import { SymbolFacade, Verifier } from 'symbol-sdk/symbol'
-import { PrivateKey } from 'symbol-sdk'
+import { PrivateKey, Signature } from 'symbol-sdk'
 import { split, combine } from 'shamirs-secret-sharing-ts'
 import fs from 'fs'
 
@@ -34,27 +34,40 @@ for (let i = 0; i < mPrime.length; i++) {
 
 // シャミアの秘密分散によりShareKeyを分割
 const secret = mPrime.slice(-1)[0]
-
-// 分割
 const shares = split(Buffer.from(secret.buffer), { shares: 3, threshold: 2 })
 
 const splitKeyForPublisher = shares[0] // これはサーバーサイド管理
 const splitKeyForAuthor = shares[1] // Authorが自身で管理
+
 // 期限付きトークン
-const token = {
-  expired: facade.now().addHours(2).timestamp.toString(),
+const exprirydate = bigintToUint8Array(facade.now().addHours(2).timestamp)
+const token = publisher.keyPair.sign(exprirydate)
+const tokenData = {
+  token: uint8ArrayToHex(token.bytes),
+  exprirydate: uint8ArrayToHex(exprirydate),
 }
-const tokenData = new Uint8Array(Buffer.from(JSON.stringify(token)))
 
-// 購入者によるトークンへの署名
-const signature = purchaser.keyPair.sign(tokenData)
+// 購入者によるトークンの暗号化
+const signature = purchaser
+  .messageEncoder()
+  .encode(publisher.publicKey, new TextEncoder().encode(JSON.stringify(tokenData)))
 
-if (!new Verifier(purchaser.publicKey).verify(tokenData, signature)) throw new Error('not verified')
+// publisherによる検証フェーズ
+const decryptSignature = publisher.messageEncoder().tryDecode(purchaser.publicKey, signature)
+// 復号可能か
+if (!decryptSignature.isDecoded) throw new Error('not verified')
 
-// Uint8Array を JSON 文字列にデコード
-const jsonString = new TextDecoder().decode(tokenData)
-const expired = BigInt(JSON.parse(jsonString).expired)
+const decryptedToken = JSON.parse(new TextDecoder().decode(decryptSignature.message))
+
+// tokenはpublisherによるものか
+const sig = new Signature(hexToUint8Array(decryptedToken.token))
+const uint8ArrayExpirydate = hexToUint8Array(decryptedToken.exprirydate)
+
+if (!new Verifier(publisher.publicKey).verify(uint8ArrayExpirydate, sig)) throw new Error('not verified')
+
+const expired = uint8ArrayToBigint(uint8ArrayExpirydate)
 const now = facade.now().timestamp
+
 if (expired < now) throw new Error('expired token')
 
 // 購入者公開鍵を元に該当Mosaicの所有確認
@@ -62,18 +75,18 @@ const hasMosaic = true
 
 if (!hasMosaic) throw new Error('do not have the mosaic')
 
-// AONTを開始するためのKey復元
+// シャミアによるKeyの復元
 const recoveredSecret = combine([splitKeyForPublisher, shares[2]])
 
+// データの復元
 const datasBeforeRestore = storage.concat(recoveredSecret)
-// 復元
 const restoredData = Aont.inverseTransform(datasBeforeRestore, publicKey)
 
 // 元のデータと復元されたデータが一致するか確認
 console.assert(Buffer.compare(originalData, restoredData) === 0, 'Failed to restore the original data.')
 console.log('Data restoration successful.')
 
-// 何かしら問題が出てkeyの再生成する場合
+// 何かしら問題が出てkeyを再生成する場合
 const recoveredSecretForNewPurchaser = combine([splitKeyForPublisher, splitKeyForAuthor])
 const newSplitKey = split(recoveredSecretForNewPurchaser, { shares: 3, threshold: 2 })
 

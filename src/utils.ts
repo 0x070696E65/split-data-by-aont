@@ -8,6 +8,18 @@ function uint8ArrayToHex(uint8Array: Uint8Array): string {
     .toUpperCase()
 }
 
+function hexToUint8Array(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) {
+    throw new Error('Invalid hex string')
+  }
+  const length = hex.length / 2
+  const uint8Array = new Uint8Array(length)
+  for (let i = 0; i < length; i++) {
+    uint8Array[i] = parseInt(hex.substr(i * 2, 2), 16)
+  }
+  return uint8Array
+}
+
 // Uint8Arary[]を結合する関数
 function concatenateUint8Arrays(arrays: Uint8Array[]): Uint8Array {
   let totalLength = 0
@@ -90,4 +102,37 @@ function sumUint8Array(arr: Uint8Array): number {
   return sum
 }
 
-export { uint8ArrayToHex, concatenateUint8Arrays, numberToUint8Array, xorBytes, encrypt, splitData }
+function bigintToUint8Array(bigint: BigInt) {
+  // ビッグエンディアンでバイト配列に変換
+  let hex = bigint.toString(16)
+  if (hex.length % 2) {
+    hex = '0' + hex // 奇数桁の場合は先頭に0を追加
+  }
+  const length = hex.length / 2
+  const uint8Array = new Uint8Array(length)
+  for (let i = 0; i < length; i++) {
+    uint8Array[i] = parseInt(hex.substr(i * 2, 2), 16)
+  }
+  return uint8Array
+}
+
+function uint8ArrayToBigint(uint8Array: Uint8Array) {
+  // ビッグエンディアンのバイト配列からビッグインテジャーに変換
+  let hex = ''
+  uint8Array.forEach((byte) => {
+    hex += byte.toString(16).padStart(2, '0')
+  })
+  return BigInt('0x' + hex)
+}
+
+export {
+  uint8ArrayToHex,
+  concatenateUint8Arrays,
+  numberToUint8Array,
+  xorBytes,
+  encrypt,
+  splitData,
+  bigintToUint8Array,
+  uint8ArrayToBigint,
+  hexToUint8Array,
+}

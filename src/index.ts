@@ -9,10 +9,7 @@ import fs from 'fs'
 const publicKey = crypto.randomBytes(16)
 
 // 生データであればなんでも良い、サイズも不問
-//const originalData = new Uint8Array(fs.readFileSync('/Users/matsukawatoshiya/Desktop/ibc_token.png'))
-const originalData = new Uint8Array(
-  Buffer.from('hello, world! from ateijobajaijboiasjbsoibdia;nba;finadibaorihaobihoeieaibaiaera', 'utf-8')
-)
+const originalData = new Uint8Array(fs.readFileSync('/Users/matsukawatoshiya/Desktop/ibc_token.png'))
 const facade = new SymbolFacade('testnet')
 
 // publisherはサーバーサイドで署名できるなど自動化しておくと良い

@@ -64,42 +64,23 @@ function encrypt(key: Uint8Array, data: Uint8Array) {
   return new Uint8Array(encrypted)
 }
 
-// データを適切な長さに分割して返す関数
-function splitData(originalData: Uint8Array, num: number, splitedDataSize: Uint8Array | null = null): Uint8Array[] {
-  const parts: Uint8Array[] = []
-  const dataLength = originalData.length
-
-  if (splitedDataSize == null) {
-    const shareLength = Math.floor(dataLength / num)
-    const dataLengthReminder = dataLength % num
-
-    for (let i = 0; i < num; i++) {
-      const part =
-        i === num - 1
-          ? originalData.slice(i * shareLength, (i + 1) * shareLength + dataLengthReminder)
-          : originalData.slice(i * shareLength, (i + 1) * shareLength)
-      parts.push(part)
-    }
-    return parts
-  } else {
-    const totalSize = sumUint8Array(splitedDataSize)
-    if (dataLength != totalSize) throw new Error('Splited data size is not equal to data size.')
-
-    let offset = 0
-    for (let i = 0; i < splitedDataSize.length; i++) {
-      parts.push(originalData.slice(offset, offset + splitedDataSize[i]))
-      offset += splitedDataSize[i]
-    }
-    return parts
-  }
+// AES復号(ecb mode)
+function decrypt(key: Uint8Array, data: Uint8Array) {
+  const cipher = crypto.createDecipheriv('aes-128-ecb', key, null)
+  let decrypted = cipher.update(data)
+  decrypted = Buffer.concat([decrypted, cipher.final()])
+  return new Uint8Array(decrypted)
 }
 
-function sumUint8Array(arr: Uint8Array): number {
-  let sum = 0
-  for (let i = 0; i < arr.length; i++) {
-    sum += arr[i]
+// データを適切な長さに分割して返す関数
+function splitData(originalData: Uint8Array, dataSize: number): Uint8Array[] {
+  const parts: Uint8Array[] = []
+  let offset = 0
+  while (offset < originalData.length) {
+    parts.push(originalData.slice(offset, offset + dataSize))
+    offset += dataSize
   }
-  return sum
+  return parts
 }
 
 function bigintToUint8Array(bigint: BigInt) {
@@ -131,6 +112,7 @@ export {
   numberToUint8Array,
   xorBytes,
   encrypt,
+  decrypt,
   splitData,
   bigintToUint8Array,
   uint8ArrayToBigint,

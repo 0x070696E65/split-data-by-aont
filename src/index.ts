@@ -7,8 +7,12 @@ import { split, combine } from 'shamirs-secret-sharing-ts'
 import fs from 'fs'
 
 const publicKey = crypto.randomBytes(16)
+
 // 生データであればなんでも良い、サイズも不問
-const originalData = new Uint8Array(fs.readFileSync('/Users/matsukawatoshiya/Desktop/ibc_token.png'))
+//const originalData = new Uint8Array(fs.readFileSync('/Users/matsukawatoshiya/Desktop/ibc_token.png'))
+const originalData = new Uint8Array(
+  Buffer.from('hello, world! from ateijobajaijboiasjbsoibdia;nba;finadibaorihaobihoeieaibaiaera', 'utf-8')
+)
 const facade = new SymbolFacade('testnet')
 
 // publisherはサーバーサイドで署名できるなど自動化しておくと良い
@@ -20,7 +24,7 @@ const author = facade.createAccount(PrivateKey.random())
 const purchaser = facade.createAccount(PrivateKey.random())
 
 // AONTによる分散
-const mPrime = Aont.transform(originalData, publicKey, 2)
+const mPrime = Aont.transform(originalData, publicKey)
 // データを2つに分割したのでそれぞれmetalで保存などしておく
 // 別に一つでも良いと思うがどこまで分散化させるかの話
 const storage = []
